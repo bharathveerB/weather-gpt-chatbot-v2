@@ -187,24 +187,3 @@ curl -X POST "http://localhost:8000/ask" \
      -d '{"question": "What is the weather in Paris?"}'
 ```
 
-## 📝 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-1. Check the [API documentation](http://localhost:8000/docs) when running
-2. Ensure your OpenAI API key is valid
-3. Verify all dependencies are installed correctly
-
----
-
-**Made with ❤️ using Streamlit, FastAPI, and GPT-4**
