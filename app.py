@@ -1,4 +1,5 @@
-import streamlit as st
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 import requests
 import re
 import os
@@ -7,9 +8,21 @@ from datetime import datetime
 from weather_agent import WeatherAgent
 from openai import OpenAI
 from dotenv import load_dotenv
+import uvicorn
 
 # Load environment variables
 load_dotenv()
+
+# FastAPI app instance
+app = FastAPI(title="Weather Chatbot API", description="AI-powered weather chatbot API", version="1.0.0")
+
+# Request/Response models
+class QuestionRequest(BaseModel):
+    question: str
+
+class WeatherResponse(BaseModel):
+    answer: str
+    success: bool = True
 
 class WeatherChatbot:
     def __init__(self):
@@ -17,8 +30,7 @@ class WeatherChatbot:
         # Initialize OpenAI client
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            st.error("⚠️ OpenAI API key not found! Please add your API key to the .env file.")
-            st.stop()
+            raise ValueError("OpenAI API key not found! Please add your API key to the .env file.")
         self.client = OpenAI(api_key=api_key)
     
     def is_weather_question(self, question):
@@ -54,7 +66,7 @@ class WeatherChatbot:
             return result.get("is_weather", False)
             
         except Exception as e:
-            st.error(f"Error with GPT-4 intent detection: {e}")
+            print(f"Error with GPT-4 intent detection: {e}")
             # Fallback to simple keyword detection
             weather_keywords = ['weather', 'temperature', 'rain', 'snow', 'forecast', 'sunny', 'cloudy']
             return any(keyword in question.lower() for keyword in weather_keywords)
@@ -90,7 +102,7 @@ class WeatherChatbot:
             return result.get("location")
             
         except Exception as e:
-            st.error(f"Error with GPT-4 location extraction: {e}")
+            print(f"Error with GPT-4 location extraction: {e}")
             # Fallback to simple regex
             location_match = re.search(r'\bin\s+([a-zA-Z\s,]+)', question, re.IGNORECASE)
             if location_match:
@@ -212,75 +224,44 @@ class WeatherChatbot:
         
         return self.get_weather_response(question)
 
-def main():
-    st.set_page_config(
-        page_title="Weather Chatbot",
-        page_icon="🌤️",
-        layout="wide"
-    )
-    
-    st.title("🌤️ Weather Chatbot")
-    st.markdown("Ask me anything about weather! I can provide current conditions and forecasts for any location.")
-    
-    # Initialize chatbot
-    if 'chatbot' not in st.session_state:
-        st.session_state.chatbot = WeatherChatbot()
-    
-    # Initialize chat history
-    if 'messages' not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Hello! I'm your weather assistant. Ask me about weather conditions, temperature, or forecasts for any location. For example: 'What's the weather in London?' or 'Show me the forecast for New York this week.'"}
+# Initialize the chatbot instance
+chatbot = WeatherChatbot()
+
+@app.get("/")
+async def root():
+    """Root endpoint with API information"""
+    return {
+        "message": "Weather Chatbot API",
+        "description": "AI-powered weather chatbot using GPT-4 and Open-Meteo API",
+        "endpoints": {
+            "/ask": "POST - Ask weather questions",
+            "/docs": "GET - API documentation"
+        },
+        "examples": [
+            "What's the weather in Paris?",
+            "Show me the forecast for New York this week",
+            "Is it raining in London?"
         ]
+    }
+
+@app.post("/ask", response_model=WeatherResponse)
+async def ask_weather(request: QuestionRequest):
+    """Ask a weather-related question"""
+    try:
+        if not request.question or not request.question.strip():
+            raise HTTPException(status_code=400, detail="Question cannot be empty")
+        
+        # Get response from chatbot
+        answer = chatbot.chat(request.question.strip())
+        
+        return WeatherResponse(answer=answer, success=True)
     
-    # Display chat history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-    
-    # Chat input
-    if prompt := st.chat_input("Ask me about weather..."):
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        
-        # Get bot response
-        with st.chat_message("assistant"):
-            with st.spinner("Getting weather information..."):
-                response = st.session_state.chatbot.chat(prompt)
-            st.markdown(response)
-        
-        # Add assistant response to chat history
-        st.session_state.messages.append({"role": "assistant", "content": response})
-    
-    # Sidebar with examples
-    with st.sidebar:
-        st.header("💡 Example Questions")
-        st.markdown("""
-        **Current Weather:**
-        - What's the weather in Paris?
-        - How's the temperature in Tokyo today?
-        - Is it raining in London?
-        
-        **Forecasts:**
-        - Show me the forecast for New York this week
-        - Weather forecast for Sydney
-        - Will it rain in Mumbai tomorrow?
-        
-        **Non-weather questions will be politely declined!**
-        """)
-        
-        st.header("ℹ️ About")
-        st.markdown("""
-        **🤖 Powered by GPT-4**
-        
-        This intelligent weather chatbot uses:
-        - **GPT-4** for smart intent detection and location extraction
-        - **Open-Meteo API** for accurate weather data
-        - **Natural language understanding** - no need for specific keywords!
-        
-        Just ask naturally about weather and the AI will understand!
-        """)
+    except ValueError as e:
+        # Handle configuration errors (like missing API key)
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        # Handle other errors
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
