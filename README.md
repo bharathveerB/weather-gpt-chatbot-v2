@@ -166,11 +166,7 @@ EXPOSE 8000 8501
 CMD ["python", "app.py"]
 ```
 
-### Other Platforms
-- **Heroku**: Use the provided `requirements.txt`
-- **Railway**: Direct GitHub integration
-- **Render**: Supports both frontend and backend
-- **Vercel**: For static deployment (frontend only)
+
 
 ## 🛠️ Development
 
