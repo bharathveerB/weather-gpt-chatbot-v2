@@ -89,8 +89,6 @@ Bot: "🌤️ Current weather in Paris: It's 22°C with partly cloudy skies. Per
 User: "Will I need an umbrella in London tomorrow?"
 Bot: "🌧️ Yes, you'll want to bring an umbrella! London is expecting light rain tomorrow with temperatures around 18°C."
 
-User: "Show me the forecast for New York this week"
-Bot: "📅 Here's the 7-day forecast for New York: [detailed forecast with daily conditions]"
 ```
 
 ### Smart Intent Detection
